@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0C0A;
+    --panel:#141513;
+    --panel-2:#1B1C19;
+    --amber:#E8A33D;
+    --amber-dim:#3A2C14;
+    --line:#2A2B27;
+    --text:#F2F0EA;
+    --text-dim:#8A897F;
+    --op:#3A3B36;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:radial-gradient(circle at 30% 20%, #16170F 0%, #0B0C0A 60%);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;
+    color:var(--text);
+    padding:32px;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
+  }
+
+  .app{
+    display:flex;gap:20px;align-items:flex-start;
+    opacity:0;transform:translateY(18px);
+    animation:appear .6s cubic-bezier(.2,.8,.25,1) forwards;
+  }
+  @keyframes appear{to{opacity:1;transform:translateY(0);}}
+
+  .calc{
+    width:340px;background:var(--panel);border:1px solid var(--line);border-radius:24px;
+    padding:24px;box-shadow:0 40px 80px -30px rgba(0,0,0,0.7);
+  }
+
+  .title{
+    display:flex;align-items:center;gap:8px;margin-bottom:18px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);
+  }
+  .title .led{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber);}
+
+  .display{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:16px;
+    padding:20px 18px 16px;margin-bottom:18px;text-align:right;position:relative;overflow:hidden;
+    min-height:88px;display:flex;flex-direction:column;justify-content:flex-end;
+  }
+  .display .prev{
+    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);min-height:16px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .display .current{
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:34px;line-height:1.2;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    transition:transform .12s ease;
+  }
+  .display.pulse .current{animation:pulse .25s ease;}
+  @keyframes pulse{0%{transform:scale(1);}40%{transform:scale(1.04);}100%{transform:scale(1);}}
+  .display.err .current{color:#E8613D;}
+
+  .pad{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .pad button{
+    height:56px;border-radius:14px;border:1px solid var(--line);background:var(--panel-2);
+    color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:500;
+    cursor:pointer;position:relative;overflow:hidden;
+    transition:transform .08s ease, background .15s ease, border-color .15s ease;
+  }
+  .pad button:hover{border-color:#3d3e39;}
+  .pad button:active, .pad button.key-flash{transform:scale(0.94);border-color:var(--amber);}
+  .pad button.op{background:var(--amber-dim);color:var(--amber);font-weight:600;}
+  .pad button.op:hover{border-color:var(--amber);}
+  .pad button.func{color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:14px;}
+  .pad button.equals{
+    background:var(--amber);color:#141310;font-weight:700;grid-row:span 1;
+  }
+  .pad button.equals:hover{filter:brightness(1.08);}
+  .pad button.zero{grid-column:span 1;}
+
+  .pad button{opacity:0;transform:translateY(10px);animation:btnIn .4s ease forwards;}
+  @keyframes btnIn{to{opacity:1;transform:translateY(0);}}
+
+  .ripple{
+    position:absolute;border-radius:50%;background:rgba(255,255,255,0.25);
+    transform:scale(0);animation:rip .5s ease-out forwards;pointer-events:none;
+  }
+  @keyframes rip{to{transform:scale(3);opacity:0;}}
+
+  .history{
+    width:230px;background:var(--panel);border:1px solid var(--line);border-radius:24px;
+    padding:20px;max-height:472px;display:flex;flex-direction:column;
+  }
+  .history h3{
+    font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--text-dim);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;
+  }
+  .history h3 button{
+    background:none;border:none;color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:11px;
+    cursor:pointer;text-decoration:underline;text-underline-offset:3px;
+  }
+  .history h3 button:hover{color:var(--amber);}
+  .history-list{overflow-y:auto;display:flex;flex-direction:column;gap:10px;flex:1;}
+  .history-list::-webkit-scrollbar{width:6px;}
+  .history-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+  .hist-empty{color:var(--text-dim);font-size:13px;font-family:'JetBrains Mono',monospace;}
+  .hist-item{
+    padding:10px 12px;background:var(--panel-2);border-radius:10px;border:1px solid var(--line);
+    opacity:0;transform:translateX(12px);animation:slideIn .35s ease forwards;
+  }
+  @keyframes slideIn{to{opacity:1;transform:translateX(0);}}
+  .hist-item .expr{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);word-break:break-all;}
+  .hist-item .res{font-family:'JetBrains Mono',monospace;font-size:16px;color:var(--amber);margin-top:2px;}
+
+  @media (max-width:700px){
+    .app{flex-direction:column;align-items:center;}
+    .history{width:340px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="calc">
+    <div class="title"><span class="led"></span>calculator</div>
+    <div class="display" id="display">
+      <div class="prev" id="prevLine">&nbsp;</div>
+      <div class="current" id="currentLine">0</div>
+    </div>
+
+    <div class="pad">
+      <button class="func" data-key="C">C</button>
+      <button class="func" data-key="⌫">⌫</button>
+      <button class="func" data-key="sqrt">√x</button>
+      <button class="func" data-key="square">x²</button>
+
+      <button class="func" data-key="(">(</button>
+      <button class="func" data-key=")">)</button>
+      <button class="func" data-key="pi">π</button>
+      <button class="op" data-key="/">÷</button>
+
+      <button data-key="1">1</button>
+      <button data-key="2">2</button>
+      <button data-key="3">3</button>
+      <button class="op" data-key="*">×</button>
+
+      <button data-key="4">4</button>
+      <button data-key="5">5</button>
+      <button data-key="6">6</button>
+      <button class="op" data-key="-">−</button>
+
+      <button data-key="7">7</button>
+      <button data-key="8">8</button>
+      <button data-key="9">9</button>
+      <button class="op" data-key="+">+</button>
+
+      <button data-key="0">0</button>
+      <button data-key=".">.</button>
+      <button class="func" data-key="±">±</button>
+      <button class="equals" data-key="=">=</button>
+    </div>
+  </div>
+
+  <div class="history">
+    <h3>History <button id="clearHist">clear</button></h3>
+    <div class="history-list" id="historyList">
+      <div class="hist-empty" id="histEmpty">Your calculations will show up here.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Expression parser (ported from Java recursive-descent Parser) ----------
+class Parser {
+  constructor(input) {
+    this.input = input.replace(/\s+/g, '');
+    this.pos = 0;
+  }
+  parseExpression() {
+    let value = this.parseTerm();
+    while (true) {
+      if (this.match('+')) value += this.parseTerm();
+      else if (this.match('-')) value -= this.parseTerm();
+      else break;
+    }
+    return value;
+  }
+  parseTerm() {
+    let value = this.parseFactor();
+    while (true) {
+      if (this.match('*')) value *= this.parseFactor();
+      else if (this.match('/')) { const d = this.parseFactor(); value /= d; }
+      else break;
+    }
+    return value;
+  }
+  parseFactor() {
+    if (this.match('+')) return this.parseFactor();
+    if (this.match('-')) return -this.parseFactor();
+    if (this.match('(')) {
+      const value = this.parseExpression();
+      if (!this.match(')')) throw new Error('Missing closing parenthesis');
+      return value;
+    }
+    if (this.peekStartsWith('pi')) { this.pos += 2; return Math.PI; }
+    return this.parseNumber();
+  }
+  parseNumber() {
+    const start = this.pos;
+    while (this.pos < this.input.length && (/[0-9.]/.test(this.input[this.pos]))) this.pos++;
+    if (start === this.pos) throw new Error('Number expected at position ' + this.pos);
+    return parseFloat(this.input.substring(start, this.pos));
+  }
+  match(expected) {
+    if (this.pos < this.input.length && this.input[this.pos] === expected) { this.pos++; return true; }
+    return false;
+  }
+  peekStartsWith(token) { return this.input.startsWith(token, this.pos); }
+  hasRemaining() { return this.pos < this.input.length; }
+}
+
+function evaluateExpression(expr) {
+  const parser = new Parser(expr);
+  const value = parser.parseExpression();
+  if (parser.hasRemaining()) throw new Error('Unexpected text at end of expression');
+  return value;
+}
+
+// ---------- Calculator state / logic (ported from Main.java) ----------
+let expression = '';
+
+const currentLine = document.getElementById('currentLine');
+const prevLine = document.getElementById('prevLine');
+const display = document.getElementById('display');
+const historyList = document.getElementById('historyList');
+const histEmpty = document.getElementById('histEmpty');
+
+function isOperator(ch) { return ch === '+' || ch === '-' || ch === '*' || ch === '/'; }
+
+function formatExpression(expr) { return expr.replace(/pi/g, String(Math.PI)); }
+
+function formatResult(value) {
+  if (Number.isInteger(value)) return String(value);
+  let s = value.toFixed(10).replace(/0+$/,'').replace(/\.$/,'');
+  return s;
+}
+
+function updateDisplay() {
+  const shown = expression.length === 0 ? '0' : expression;
+  currentLine.textContent = displayFriendly(shown);
+  display.classList.remove('err');
+}
+
+function displayFriendly(s) {
+  return s.replace(/\*/g,'×').replace(/\//g,'÷').replace(/pi/g, 'π');
+}
+
+function pulse() {
+  display.classList.remove('pulse'); void display.offsetWidth; display.classList.add('pulse');
+}
+
+function clearAll() { expression = ''; prevLine.textContent = '\u00A0'; updateDisplay(); }
+
+function backspace() {
+  if (expression.length > 0) { expression = expression.slice(0, -1); updateDisplay(); }
+}
+
+function appendInput(value) {
+  expression += (value === 'pi' ? 'pi' : value);
+  updateDisplay();
+}
+
+function appendOperator(operator) {
+  if (expression.length === 0) {
+    if (operator === '-') { expression += operator; updateDisplay(); }
+    return;
+  }
+  const last = expression[expression.length - 1];
+  if (isOperator(last) || last === '.') {
+    expression = expression.slice(0, -1) + operator;
+  } else {
+    expression += operator;
+  }
+  updateDisplay();
+}
+
+function appendDecimalPoint() {
+  if (expression.length === 0 || isOperator(expression[expression.length - 1])) {
+    expression += '0.'; updateDisplay(); return;
+  }
+  let i = expression.length - 1;
+  while (i >= 0 && !isOperator(expression[i])) {
+    if (expression[i] === '.') return;
+    i--;
+  }
+  expression += '.'; updateDisplay();
+}
+
+function lastOperatorPosition() {
+  for (let i = expression.length - 1; i >= 0; i--) {
+    const ch = expression[i];
+    if (isOperator(ch) && ch !== '-') return i;
+    if (isOperator(ch) && ch === '-' && i !== 0) return i;
+  }
+  return -1;
+}
+
+function toggleSign() {
+  if (expression.length === 0) { expression = '-'; updateDisplay(); return; }
+  const lastOp = lastOperatorPosition();
+  if (lastOp === -1) {
+    if (expression[0] === '-') expression = expression.slice(1);
+    else expression = '-' + expression;
+  } else {
+    if (expression[lastOp + 1] === '-') {
+      expression = expression.slice(0, lastOp + 1) + expression.slice(lastOp + 2);
+    } else {
+      expression = expression.slice(0, lastOp + 1) + '-' + expression.slice(lastOp + 1);
+    }
+  }
+  updateDisplay();
+}
+
+function showError(message) {
+  currentLine.textContent = message;
+  display.classList.add('err');
+  expression = '';
+}
+
+function addHistory(expr, result) {
+  histEmpty.style.display = 'none';
+  const item = document.createElement('div');
+  item.className = 'hist-item';
+  const resText = (result === null || !isFinite(result)) ? 'Undefined' : formatResult(result);
+  item.innerHTML = `<div class="expr">${displayFriendly(formatExpression(expr))}</div><div class="res">= ${resText}</div>`;
+  historyList.prepend(item);
+  prevLine.textContent = displayFriendly(formatExpression(expr)) + ' =';
+}
+
+function calculateResult() {
+  if (expression.length === 0) return;
+  const expr = expression;
+  try {
+    const result = evaluateExpression(expr);
+    if (isFinite(result)) {
+      addHistory(expr, result);
+      expression = formatResult(result);
+      updateDisplay();
+      pulse();
+    } else {
+      addHistory(expr, null);
+      showError('Undefined');
+    }
+  } catch (e) {
+    showError('Invalid Expression');
+  }
+}
+
+function applyUnaryOperation(operation) {
+  if (expression.length === 0) return;
+  try {
+    const value = evaluateExpression(expression);
+    let result;
+    if (operation === 'square') {
+      result = value * value;
+      addHistory('square(' + expression + ')', result);
+    } else {
+      if (value < 0) { showError('Invalid input for sqrt'); return; }
+      result = Math.sqrt(value);
+      addHistory('sqrt(' + expression + ')', result);
+    }
+    expression = formatResult(result);
+    updateDisplay();
+    pulse();
+  } catch (e) {
+    showError('Error');
+  }
+}
+
+function handleKey(key) {
+  switch (key) {
+    case 'C': clearAll(); break;
+    case '⌫': backspace(); break;
+    case '=': calculateResult(); break;
+    case 'pi': appendInput('pi'); break;
+    case '±': toggleSign(); break;
+    case '+': case '-': case '*': case '/': appendOperator(key); break;
+    case '.': appendDecimalPoint(); break;
+    case 'square': applyUnaryOperation('square'); break;
+    case 'sqrt': applyUnaryOperation('sqrt'); break;
+    default: appendInput(key);
+  }
+}
+
+// ---------- Entrance stagger ----------
+document.querySelectorAll('.pad button').forEach((btn, i) => {
+  btn.style.animationDelay = (0.05 + i * 0.025) + 's';
+});
+
+// ---------- Button wiring + ripple ----------
+document.querySelectorAll('.pad button').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    handleKey(btn.dataset.key);
+    const rect = btn.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+    const size = Math.max(rect.width, rect.height);
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+    ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
+    btn.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 500);
+  });
+});
+
+document.getElementById('clearHist').addEventListener('click', () => {
+  historyList.querySelectorAll('.hist-item').forEach(el => el.remove());
+  histEmpty.style.display = 'block';
+});
+
+// ---------- Keyboard bindings ----------
+window.addEventListener('keydown', (e) => {
+  const map = {
+    '0':'0','1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9',
+    '.':'.','-':'-','/':'/','+':'+','*':'*','(':'(',')':')',
+    'Enter':'=','Backspace':'⌫','Escape':'C','p':'pi','P':'pi'
+  };
+  if (e.key in map) {
+    e.preventDefault();
+    const value = map[e.key];
+    handleKey(value);
+    const btn = document.querySelector(`.pad button[data-key="${CSS.escape(value)}"]`);
+    if (btn) {
+      btn.classList.add('key-flash');
+      setTimeout(() => btn.classList.remove('key-flash'), 140);
+    }
+  }
+});
+
+clearAll();
+</script>
+
+</body>
+</html>
